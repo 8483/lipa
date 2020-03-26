@@ -1,8 +1,9 @@
 /* 
 TODO: 
 
-POPSTATE and PUSHSTATE refactor???
-Split code into modules i.e. page one and page two, to be combined with webpack.
+- Use spread operator to update the model in the update function. { ...model, input: msg.payload };
+- Make an example app with menu, and 3 pages: counter, todo, api calls
+- Split code into modules i.e. page one and page two, to be combined with webpack.
 
 */
 
@@ -11,19 +12,27 @@ const diff = require('virtual-dom/diff');
 const patch = require('virtual-dom/patch');
 const createElement = require('virtual-dom/create-element');
 
+let locationChangeMsg = require('./navigation').locationChangeMsg;
+let headerComponent = require('./headerComponent').headerComponent;
+let CounterModule = require('./counterModule');
+let ApiModule = require('./apiModule');
 
 // ======================== PAGES ========================
 
 const PAGES = {
     HOME: '/',
-    OTHER: '/other'
+    API: '/api',
+    COUNTER: '/counter'
 };
 
 // ======================== MODEL ========================
 
 const initModel = {
     page: PAGES.HOME,
+    counterModule: CounterModule.init,
+    apiModule: ApiModule.init,
     initialData: "Initial data...",
+    contentOne: null,
     input: "",
     items: [
         { id: 1, task: "Get milk." },
@@ -31,8 +40,6 @@ const initModel = {
         { id: 3, task: "Get chocolate." },
         { id: 4, task: "Get bread." },
     ],
-    contentOne: null,
-    contentTwo: null,
 };
 
 // Initialize the view.
@@ -83,49 +90,38 @@ function getDataOne(model) {
     }
 }
 
-function getDataTwo(model) {
-    return {
-        request: { url: `https://jsonplaceholder.typicode.com/posts/2` },
-        successMsg: (response) => {
-            return {
-                type: MSGS.GET_DATA_TWO_SUCCESS,
-                payload: response,
-            }
-        },
-        errorMsg: (response) => {
-            return {
-                type: MSGS.GET_DATA_TWO_ERROR,
-                payload: response,
-            }
-        }
-    }
-}
-
 // ======================== MESSAGES ========================
+
+
+/*
+type Msg
+    = Navigate Page
+    | ChangePage Page
+    | ChildModuleMsg ChildModule.Msg
+*/
 
 const MSGS = {
     LOCATION_CHANGE: 'LOCATION_CHANGE',
+
     INPUT: 'INPUT',
     SAVE: 'SAVE',
     DELETE: 'DELETE',
+
     GET_INITIAL_DATA_SUCCESS: 'GET_INITIAL_DATA_SUCCESS',
     GET_INITIAL_DATA_ERROR: 'GET_INITIAL_DATA_ERROR',
+
     GET_DATA_ONE: 'GET_DATA_ONE',
     GET_DATA_ONE_SUCCESS: 'GET_DATA_ONE_SUCCESS',
     GET_DATA_ONE_ERROR: 'GET_DATA_ONE_ERROR',
-    GET_DATA_TWO: 'GET_DATA_TWO',
-    GET_DATA_TWO_SUCCESS: 'GET_DATA_TWO_SUCCESS',
-    GET_DATA_TWO_ERROR: 'GET_DATA_TWO_ERROR',
+
+    MAKE_API_CALL: 'MAKE_API_CALL',
+    MAKE_API_CALL_SUCCESS: 'MAKE_API_CALL_SUCCESS',
+    MAKE_API_CALL_ERROR: 'MAKE_API_CALL_ERROR',
+
+    INCREMENT: 'INCREMENT',
+    DECREMENT: 'DECREMENT',
 };
 
-// Returns a location change message, to be dispatched
-function locationChangeMsg(path) {
-    console.log("locationChangeMsg", path)
-    return {
-        type: MSGS.LOCATION_CHANGE,
-        path
-    }
-}
 // ======================== UPDATE ========================
 
 function update(msg, model) {
@@ -133,17 +129,42 @@ function update(msg, model) {
 
         case MSGS.LOCATION_CHANGE: {
             console.log("UPDATE MSG: ", msg)
-            // const page = pathToPage(msg.path)
             let newModel = model;
             newModel.page = msg.path;
-            history.pushState("", "", msg.path);
+            history.pushState("", "", msg.path); // BACK and FORWARD button
             return newModel;
         }
 
+        /*
+        ChildModuleMsg msg ->
+            let
+                ( childModuleModel, cmd ) =                         -- DESTRUCTURING???
+                    ChildModule.update msg model.childModule
+            in
+                ( { model | childModule = childModuleModel } -- childModuleModel = ChildModule.update msg model.childModule
+                , Cmd.map ChildModuleMsg cmd )
+        */
+
+        // Mapping to the module upate. We are updating values INSIDE the counter module.
+        case MSGS.INCREMENT: {
+            console.log('MAIN > UPDATE INCREMENT ', model.counterModule.model)
+            let counterModuleModel = { model: CounterModule.update(msg, model.counterModule.model) };
+            return { ...model, counterModule: counterModuleModel };
+            break;
+        }
+
+        // Mapping to the module upate. We are updating values INSIDE the counter module.
+        case MSGS.DECREMENT: {
+            console.log('MAIN > UPDATE DECREMENT ', model.counterModule.model)
+            let counterModuleModel = { model: CounterModule.update(msg, model.counterModule.model) };
+            return { ...model, counterModule: counterModuleModel };
+            break;
+        }
+
         case MSGS.INPUT: {
-            let newModel = model;
-            newModel.input = msg.payload;
-            return newModel;
+            // let newModel = model;
+            // newModel.input = msg.payload;
+            return { ...model, input: msg.payload };
             break;
         }
 
@@ -158,16 +179,12 @@ function update(msg, model) {
         }
 
         case MSGS.DELETE: {
-            let newModel = model;
-            newModel.items = newModel.items.filter(item => item.id != msg.payload);
-            return newModel;
+            return { ...model, items: model.items.filter(item => item.id != msg.payload) };
             break;
         }
 
         case MSGS.GET_INITIAL_DATA_SUCCESS: {
-            let newModel = model;
-            newModel.initialData = JSON.stringify(msg.payload);
-            return newModel;
+            return { ...model, initialData: JSON.stringify(msg.payload) };
             break;
         }
 
@@ -204,28 +221,21 @@ function update(msg, model) {
             break;
         }
 
-        case MSGS.GET_DATA_TWO: {
-            // Model to be sent in app.
-            let newModel = model;
-            newModel.contentTwo = "Loading..."
-
-            // Command, executed in the app.
-            let command = getDataTwo();
-            // Send to app. Must be an array.
+        case MSGS.MAKE_API_CALL: {
+            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
+            let command = ApiModule.makeApiCall();
             return [newModel, command]
             break;
         }
 
-        case MSGS.GET_DATA_TWO_SUCCESS: {
-            let newModel = model;
-            newModel.contentTwo = msg.payload.body;
+        case MSGS.MAKE_API_CALL_SUCCESS: {
+            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
             return newModel;
             break;
         }
 
-        case MSGS.GET_DATA_TWO_ERROR: {
-            let newModel = model;
-            newModel.contentTwo = msg.payload;
+        case MSGS.MAKE_API_CALL_ERROR: {
+            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
             return newModel;
             break;
         }
@@ -234,33 +244,6 @@ function update(msg, model) {
 }
 
 // ======================== VIEW ========================
-
-function headerComponent(dispatch, model) {
-    return h('div', [
-        h('button', {
-            onclick: () => {
-                console.log("button clicked")
-                // dispatch({
-                //     type: MSGS.LOCATION_CHANGE,
-                //     path: "other"
-                // })
-                dispatch(locationChangeMsg("/"))
-            }
-        }, "HOME PAGE"),
-        h('button', {
-            onclick: () => {
-                console.log("button clicked")
-                // dispatch({
-                //     type: MSGS.LOCATION_CHANGE,
-                //     path: "other"
-                // })
-                dispatch(locationChangeMsg("/other"))
-            }
-        }, "OTHER PAGE"),
-        h('br'),
-        h('br'),
-    ]);
-}
 
 function homeView(dispatch, model) {
 
@@ -278,8 +261,8 @@ function homeView(dispatch, model) {
                         })
                     }
                 }, [
-                        h('td', [item.task]),
-                    ])
+                    h('td', [item.task]),
+                ])
             )
         }
         return h('table', [
@@ -326,33 +309,50 @@ function homeView(dispatch, model) {
     ]);
 }
 
-function otherView(dispatch, model) {
-    return h('div', [
-        headerComponent(dispatch, model),
-        h('button', {
-            onclick: () => {
-                dispatch({
-                    type: MSGS.GET_DATA_TWO
-                })
-            }
-        },
-            "Get data two"
-        ),
-        h('div', [model.contentTwo])
-    ]);
-}
+/*
+view model =
+    let
+        page =
+
+            case model.page of
+                ChildModulePage ->
+                    Html.map ChildModuleMsg
+                        ( ChildModule.view model.childModule )
+
+                DashboardPage ->
+                    Html.map DashboardMsg
+                        ( Dashboard.view model.dashboard )
+
+                LoginPage ->
+                    Html.map LoginMsg
+                        ( Login.view model.login )
+
+                NotFound ->
+                    div [ class "main" ]
+                        [ h1 []
+                            [ text "Page Not Found!" ]
+                        ]
+    in
+        div [ class "container-fluid full-height" ]
+            [ pageHeader model
+            , page
+            ]
+*/
 
 function view(dispatch, model) {
-    console.log("view()")
-    console.log("model.page:", model.page)
+    console.log("VIEW model.page:", model.page)
     switch (model.page) {
         case PAGES.HOME: {
             console.log("PAGES.HOME")
             return homeView(dispatch, model);
         }
-        case PAGES.OTHER: {
-            console.log("PAGES.OTHER")
-            return otherView(dispatch, model);
+        case PAGES.API: {
+            // console.log("PAGES.API")
+            return ApiModule.view(dispatch, model.apiModule.model);
+        }
+        case PAGES.COUNTER: {
+            // console.log("PAGES.COUNTER")
+            return CounterModule.view(dispatch, model.counterModule.model);
         }
     }
 }
@@ -360,6 +360,7 @@ function view(dispatch, model) {
 // ======================== APP ========================
 
 function app(init, update, view, node) {
+
     // This is the initialization of the app i.e. only fires once
     console.log(init)
     // Get the current browser's URL pathname
@@ -387,6 +388,7 @@ function app(init, update, view, node) {
         // Update "catches" it, updates the current model, and returns it.
         // returns either a model or an array with model and command
         const updates = update(msg, model);
+        console.log("INSIDE DISPATCH:", updates)
         // Array check boolean
         const isArray = updates.constructor === Array;
         // Get the model from the array. If not array, it's just the model.
@@ -405,6 +407,7 @@ function app(init, update, view, node) {
         rootNode = patch(rootNode, patches);
         // The new view becomes the old view in for future dispatches.
         currentView = updatedView;
+        console.log("\n")
     }
 
     // BACK BUTTON i.e. load the view stored in the back button.

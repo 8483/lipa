@@ -2,10 +2,11 @@
   "name": "lipa",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "dev": "webpack --watch --mode development",
-    "build": "webpack"
+    "start": "nodemon server.js",
+    "build": "watchify ./src/main.js -v -o 'terser -m -c > ./dist/app.min.js'",
+    "dev": "watchify ./src/main.js -v -o ./dist/app.min.js"
   },
   "author": "",
   "license": "ISC",
@@ -13,9 +14,9 @@
     "express": "^4.17.1"
   },
   "devDependencies": {
-    "nodemon": "^1.19.1",
+    "nodemon": "^1.19.4",
+    "terser": "^4.6.7",
     "virtual-dom": "^2.1.1",
-    "webpack": "^4.32.2",
-    "webpack-cli": "^3.3.2"
+    "watchify": "^3.11.1"
   }
 }

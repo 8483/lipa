@@ -7,8 +7,8 @@ Dependencies:
 
 devDependencies:
 - virtual-dom
-- webpack
-- webpack-cli
+- watchify
+- terser
 - nodemon
 
 # Install
@@ -17,9 +17,12 @@ devDependencies:
 # 1. Install dependencies.
 npm i
 
-# 2. Build app with webpack
-npm run build
+# 2. Start development
+npm run dev
 
-# 3. Start the server
+# 3. Start the server to deliver the build
 nodemon server.js
+
+# 4. Build app
+npm run build
 ```

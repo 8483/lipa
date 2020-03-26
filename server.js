@@ -1,7 +1,6 @@
-var express = require("express"); // Web Framework
-var bodyParser = require("body-parser"); // define our app using express
+const express = require("express"); // Web Framework
 
-var app = express();
+const app = express();
 
 // Allow requests from all domains and localhost
 app.all("/*", function (req, res, next) {
@@ -10,15 +9,16 @@ app.all("/*", function (req, res, next) {
         "Access-Control-Allow-Headers",
         "X-Requested-With, Content-Type, Accept"
     );
-    res.header("Access-Control-Allow-Methods", "POST, GET");
+    res.header("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS, PUT, PATCH, DELETE");
     next();
 });
 
+const root = `${__dirname}/dist`
 
-app.use(bodyParser.urlencoded({ extended: false }))
-    .use(bodyParser.json())
-    .use(express.static('dist'));
-;
+app
+    .use(express.static(root))
+    .use(express.json())
+    ;
 
 // Must be below app.use()
 app.get("/*", function (req, res) {
@@ -30,7 +30,4 @@ var server = app.listen(5000, function () {
     var port = server.address().port;
     console.log("app listening at http://%s:%s", host, port);
 });
-
-
-
 
