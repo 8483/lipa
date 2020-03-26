@@ -92,7 +92,6 @@ function getDataOne(model) {
 
 // ======================== MESSAGES ========================
 
-
 /*
 type Msg
     = Navigate Page
@@ -100,7 +99,7 @@ type Msg
     | ChildModuleMsg ChildModule.Msg
 */
 
-const MSGS = {
+let MSGS = {
     LOCATION_CHANGE: 'LOCATION_CHANGE',
 
     INPUT: 'INPUT',
@@ -114,18 +113,35 @@ const MSGS = {
     GET_DATA_ONE_SUCCESS: 'GET_DATA_ONE_SUCCESS',
     GET_DATA_ONE_ERROR: 'GET_DATA_ONE_ERROR',
 
-    MAKE_API_CALL: 'MAKE_API_CALL',
-    MAKE_API_CALL_SUCCESS: 'MAKE_API_CALL_SUCCESS',
-    MAKE_API_CALL_ERROR: 'MAKE_API_CALL_ERROR',
-
-    INCREMENT: 'INCREMENT',
-    DECREMENT: 'DECREMENT',
+    COUNTER_MODULE_MESSAGE: "COUNTER_MODULE_MESSAGE",
+    API_MODULE_MESSAGE: "API_MODULE_MESSAGE"
 };
 
 // ======================== UPDATE ========================
 
 function update(msg, model) {
     switch (msg.type) {
+
+        // Forwards the messages to the counter module
+        case MSGS.COUNTER_MODULE_MESSAGE: {
+            let counterModuleModel = { model: CounterModule.update(msg, model.counterModule.model) };
+            let newModel = { ...model, counterModule: counterModuleModel };
+            return newModel;
+        }
+
+        // Forwards the messages to the api module
+        case MSGS.API_MODULE_MESSAGE: {
+
+            // Extract model
+            let apiModuleModel = { model: ApiModule.update(msg, model.apiModule.model)[0] };
+
+            // extract command
+            let apiModuleCommand = ApiModule.update(msg, model.apiModule.model)[1]
+
+            let newModel = { ...model, apiModule: apiModuleModel };
+            let command = apiModuleCommand;
+            return [newModel, command];
+        }
 
         case MSGS.LOCATION_CHANGE: {
             console.log("UPDATE MSG: ", msg)
@@ -135,37 +151,10 @@ function update(msg, model) {
             return newModel;
         }
 
-        /*
-        ChildModuleMsg msg ->
-            let
-                ( childModuleModel, cmd ) =                         -- DESTRUCTURING???
-                    ChildModule.update msg model.childModule
-            in
-                ( { model | childModule = childModuleModel } -- childModuleModel = ChildModule.update msg model.childModule
-                , Cmd.map ChildModuleMsg cmd )
-        */
-
-        // Mapping to the module upate. We are updating values INSIDE the counter module.
-        case MSGS.INCREMENT: {
-            console.log('MAIN > UPDATE INCREMENT ', model.counterModule.model)
-            let counterModuleModel = { model: CounterModule.update(msg, model.counterModule.model) };
-            return { ...model, counterModule: counterModuleModel };
-            break;
-        }
-
-        // Mapping to the module upate. We are updating values INSIDE the counter module.
-        case MSGS.DECREMENT: {
-            console.log('MAIN > UPDATE DECREMENT ', model.counterModule.model)
-            let counterModuleModel = { model: CounterModule.update(msg, model.counterModule.model) };
-            return { ...model, counterModule: counterModuleModel };
-            break;
-        }
-
         case MSGS.INPUT: {
             // let newModel = model;
             // newModel.input = msg.payload;
             return { ...model, input: msg.payload };
-            break;
         }
 
         case MSGS.SAVE: {
@@ -175,24 +164,20 @@ function update(msg, model) {
             newModel.items.push({ id: id, task: newModel.input });
             newModel.input = "";
             return newModel;
-            break;
         }
 
         case MSGS.DELETE: {
             return { ...model, items: model.items.filter(item => item.id != msg.payload) };
-            break;
         }
 
         case MSGS.GET_INITIAL_DATA_SUCCESS: {
             return { ...model, initialData: JSON.stringify(msg.payload) };
-            break;
         }
 
         case MSGS.GET_INITIAL_DATA_ERROR: {
             let newModel = model;
             newModel.initialData = msg.payload;
             return newModel;
-            break;
         }
 
         case MSGS.GET_DATA_ONE: {
@@ -204,42 +189,19 @@ function update(msg, model) {
             let command = getDataOne();
             // Send to app. Must be an array.
             return [newModel, command]
-            break;
         }
 
         case MSGS.GET_DATA_ONE_SUCCESS: {
             let newModel = model;
             newModel.contentOne = msg.payload.body;
             return newModel;
-            break;
         }
 
         case MSGS.GET_DATA_ONE_ERROR: {
             let newModel = model;
             newModel.contentOne = msg.payload;
             return newModel;
-            break;
         }
-
-        case MSGS.MAKE_API_CALL: {
-            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
-            let command = ApiModule.makeApiCall();
-            return [newModel, command]
-            break;
-        }
-
-        case MSGS.MAKE_API_CALL_SUCCESS: {
-            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
-            return newModel;
-            break;
-        }
-
-        case MSGS.MAKE_API_CALL_ERROR: {
-            let newModel = { ...model, apiModule: { model: ApiModule.update(msg, model.apiModule.model) } };
-            return newModel;
-            break;
-        }
-
     }
 }
 

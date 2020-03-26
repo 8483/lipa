@@ -16,6 +16,7 @@ let init = {
 // ======================== MESSAGES ========================
 
 const MSGS = {
+    COUNTER_MODULE_MESSAGE: 'COUNTER_MODULE_MESSAGE',
     INCREMENT: 'INCREMENT',
     DECREMENT: 'DECREMENT',
 };
@@ -23,7 +24,7 @@ const MSGS = {
 // ======================== UPDATE ========================
 
 function update(msg, model) {
-    switch (msg.type) {
+    switch (msg.action) {
 
         case MSGS.INCREMENT: {
             console.log("COUNTER MODULE > UPDATE INCREMENT", model)
@@ -47,7 +48,8 @@ function view(dispatch, model) {
         h('button', {
             onclick: () => {
                 dispatch({
-                    type: MSGS.INCREMENT
+                    type: MSGS.COUNTER_MODULE_MESSAGE,
+                    action: MSGS.INCREMENT
                 })
             }
         },
@@ -56,7 +58,8 @@ function view(dispatch, model) {
         h('button', {
             onclick: () => {
                 dispatch({
-                    type: MSGS.DECREMENT
+                    type: MSGS.COUNTER_MODULE_MESSAGE,
+                    action: MSGS.DECREMENT
                 })
             }
         },
